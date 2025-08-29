@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>obj2sm3</title>
+    <style>
+        .centered-text {
+            text-align: center;
+        }
+
+        .section {
+            display: inline-block;
+            text-align: left;
+        }
+
+        body {
+            font-family: Arial, Helvetica, sans-serif;
+        }
+    </style>
+    <script src="./obj2sm3.js"></script>
+</head>
+
+<body class="centered-text">
+    <h1>obj2sm3</h1>
+    <div class="section">
+        <span class="centered-text">A tool that converts .obj to .sm3 (Scratch Model 3D)</span>
+        <hr>
+        <div>
+            <label for="objFile">Select OBJ file:</label>
+            <input type="file" id="objFile" name="objFile" accept=".obj">
+        </div>
+        <hr>
+    </div>
+    <div>
+        <button type="button" onclick="downloadSM3(document.getElementById('objFile'))">
+            Download Scratch Model
+        </button>
+        <script>
+            async function downloadSM3(event) {
+                const file = event.files[0];
+                if (!file) { alert('Error: No file chosen'); return; }
+
+                const fileName = file.name;
+                const fileContents = await file.text();
+
+                const dotIndex = fileName.lastIndexOf(".");
+                const exportName = fileName.substring(0, dotIndex) + ".sm3";
+                listInput = fileContents.split("\n");
+                console.log(convertOBJtoSM3(listInput))
+                downloadFile(exportName, convertOBJtoSM3(listInput).join("\n"));
+            }
+
+            function downloadFile(filename, content) {
+                const a = document.createElement("a");
+                a.href = URL.createObjectURL(new Blob([content]));
+                a.download = filename;
+                a.click();
+                URL.revokeObjectURL(a.href);
+            }
+        </script>
+    </div>
+</body>
+
+</html>
