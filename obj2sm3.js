@@ -1,4 +1,5 @@
 const charset = '!"#$%&\'()*+-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\]^_\`abcdefghijklmnopqrstuvwxyz{|}~';
+console.log(charset[6]);
 const base = charset.length;
 
 function processCmd(cmd, data) {
@@ -16,8 +17,14 @@ function processCmd(cmd, data) {
     }
 }
 
-function convertOBJtoSM3(obj) {
-    let exported = [];
+function convertOBJtoSM3(obj, iUV, iN) {
+    const flags = [iUV, iN];
+    const header = [
+        "v1.0.0",
+        "scratch.mit.edu/users/KryptoScratcher",
+        "@" + compressInt(parseInt(flags.join()))
+    ];
+    let exported = ["*SM3_Header", header.join(",")];
     let previous = "";
     for (const line of obj) {
         const parts = line.trim().split(/\s+/);
