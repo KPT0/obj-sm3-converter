@@ -1,5 +1,4 @@
-const charset = '!"#$%&\'()*+-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\]^_\`abcdefghijklmnopqrstuvwxyz{|}~';
-console.log(charset[6]);
+const charset = '!\"#$%&\'()*+-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~';
 const base = charset.length;
 
 function processCmd(cmd, data) {
@@ -41,7 +40,7 @@ function convertOBJtoSM3(obj, iUV, iN) {
             exported.push(out.join(","));
         }
     }
-    exported.push()
+    exported.push("")
     return exported;
 }
 
