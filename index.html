@@ -31,15 +31,29 @@
             <label for="objFile">Select OBJ file:</label>
             <input type="file" id="objFile" name="objFile" accept=".obj">
         </div>
+        <div>
+            <input type="checkbox" id="enablePos" name="enablePos" checked>
+            <label for="enablePos">Enable Posiiton? (v)</label>
+            <br>
+            <input type="checkbox" id="enableTex" name="enableTex">
+            <label for="enableTex">Enable UV? (vt)</label>
+            <br>
+            <input type="checkbox" id="enableNorm" name="enableNorm">
+            <label for="enableNorm">Enable Normals? (vn)</label>
+        </div>
         <hr>
     </div>
     <div>
-        <button type="button" onclick="downloadSM3(document.getElementById('objFile'))">
+        <button type="button" onclick="downloadSM3(
+            document.getElementById('objFile').files[0],
+            document.getElementById('enablePos').checked,
+            document.getElementById('enableTex').checked,
+            document.getElementById('enableNorm').checked
+        )">
             Download Scratch Model
         </button>
         <script>
-            async function downloadSM3(event) {
-                const file = event.files[0];
+            async function downloadSM3(file, parsePos, parseTex, parseNorm) {
                 if (!file) { alert('Error: No file chosen'); return; }
 
                 const fileName = file.name;
@@ -47,15 +61,15 @@
 
                 const dotIndex = fileName.lastIndexOf(".");
                 const exportName = fileName.substring(0, dotIndex) + ".sm3";
-                listInput = fileContents.split("\n");
-                console.log(convertOBJtoSM3(listInput))
-                downloadFile(exportName, convertOBJtoSM3(listInput).join("\n"));
+                const SM3 = convertOBJtoSM3(fileContents.split("\n"), parsePos, parseTex, parseNorm)
+                console.log(SM3);
+                downloadFile(exportName, SM3.exported.join("\n"));
             }
 
-            function downloadFile(filename, content) {
+            function downloadFile(name, content) {
                 const a = document.createElement("a");
                 a.href = URL.createObjectURL(new Blob([content]));
-                a.download = filename;
+                a.download = name;
                 a.click();
                 URL.revokeObjectURL(a.href);
             }
