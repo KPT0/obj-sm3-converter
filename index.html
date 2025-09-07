@@ -61,8 +61,7 @@
 
                 const dotIndex = fileName.lastIndexOf(".");
                 const exportName = fileName.substring(0, dotIndex) + ".sm3";
-                const SM3 = convertOBJtoSM3(fileContents.split("\n"), parsePos, parseTex, parseNorm)
-                console.log(SM3);
+                const SM3 = convertOBJtoSM3(fileContents.split("\n"), parsePos, parseTex, parseNorm);
                 downloadFile(exportName, SM3.exported.join("\n"));
             }
 
