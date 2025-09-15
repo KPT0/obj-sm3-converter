@@ -1,33 +1,29 @@
 const charset = '!\"#$%&\'()*+-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~';
 const base = charset.length;
 
-function convertOBJtoSM3(obj, parsePos, parseTex, parseNorm) {
+function convertOBJtoSM3(obj, floatAcc, parsePos, parseTex, parseNorm) {
+    const state = {
+        accuracy: (base ** floatAcc) - 1,
+        currentMaterial: "",
+        hasPos: false,
+        hasTex: false,
+        hasNorm: false
+    };
     const blackList = [
         parsePos ? null : "v",
         parseTex ? null : "vt",
         parseNorm ? null : "vn"
     ];
     console.log(blackList);
-    const header = [
-        "v1.1.0",
-        "scratch.mit.edu/users/KryptoScratcher",
-    ];
-    let exported = ["*SM3", header.join(",")];
+    let exported = [];
     let lastCmd = ""
-    const state = {
-        currentMaterial: "",
-        hasPos: false,
-        hasTex: false,
-        hasNorm: false
-    };
     for (const line of obj) {
         //get parts and commands
         const parts = line.split(" ");
         const cmd = parts.shift();
         //dont parse unknown or blacklisted commands
-        if (cmd == undefined) { continue; }
-        if (blackList.includes(cmd)) { console.log(cmd); continue; }
-        const out = processCmd(cmd, lastCmd, parts, state); //returns a list
+        if (blackList.includes(cmd)) { continue; }
+        const out = compressCmd(cmd, parts, state); //returns a list
         if (out != null) {
             if (cmd != lastCmd) {
                 exported.push(cmd);
@@ -37,23 +33,30 @@ function convertOBJtoSM3(obj, parsePos, parseTex, parseNorm) {
         }
     }
     exported.push("");
+    exported = ["*", ...Object.values(state)].concat(exported);
     console.log(state);
     return { exported, ...state };
 }
 
-function processCmd(cmd, previousCmd, data, state) {
+function compressCmd(cmd, data, state) {
     switch (cmd) {
         case "o":
             return data;
         case "v":
             state.hasPos = true;
             return data.map(i => parseFloat(i));
+            //return data.map(i => compressInt(Math.floor(parseFloat(i) * state.accuracy)));
         case "vt":
             state.hasTex = true;
-            return data.map(i => parseFloat(i));
+            return data.map(i => compressInt(Math.floor(i * state.accuracy)));
         case "vn":
             state.hasNorm = true;
-            return data.map(i => parseFloat(i));
+            //get normal vector
+            const [x, y, z] = data.map(i => parseFloat(i));
+            //convert normal to 2 angles (0-1) then compress to int
+            const alpha = compressInt(Math.floor((Math.atan2(x, z) / (2 * Math.PI) + 0.5) * state.accuracy));
+            const beta = compressInt(Math.floor((Math.asin(y) / (2 * Math.PI) + 0.5) * state.accuracy));
+            return [alpha, beta];
         case "f":
             return data.flatMap(i => {
                 const [v, vt, vn] = i.split("/").map(n => parseInt(n));
@@ -76,18 +79,14 @@ function processCmd(cmd, previousCmd, data, state) {
     }
 }
 
-function parseObj(obj) {
-    let info = [];
-    let commands = [];
-    for (const line of obj) {
-        const parts = line.trim().split(/\s+/);
-        const cmd = parts.shift();
-        if (!commands.indexOf(cmd)) { commands.push(cmd); }
-        const out = processCmd(cmd, parts);
-        if (out != null) {
-            exported.push(out.join(","));
-        }
+function compressFixedInt(n, d) {
+    n = parseInt(n);
+    let result = "";
+    for (let i = 0; i < d; i++) {
+        result += charset[n % base];
+        n = Math.floor(n / base);
     }
+    return result;
 }
 
 function compressInt(n) {
@@ -95,9 +94,8 @@ function compressInt(n) {
     if (n === 0) { return charset[0]; }
     let result = "";
     while (n > 0) {
-        let letter = n % base;
+        result += charset[n % base];
         n = Math.floor(n / base);
-        result += charset[letter];
     }
     return result;
 }

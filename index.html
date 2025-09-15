@@ -16,7 +16,7 @@
         }
 
         body {
-            font-family: Arial, Helvetica, sans-serif;
+            font-family: 'Gill Sans', 'Gill Sans MT', Calibri, 'Trebuchet MS', sans-serif;
         }
     </style>
     <script src="./obj2sm3.js"></script>
@@ -25,27 +25,41 @@
 <body class="centered-text">
     <h1>obj2sm3</h1>
     <div class="section">
-        <span class="centered-text">A tool that converts .obj to .sm3 (Scratch Model 3D)</span>
+        <p class="centered-text">A tool that converts .obj to .sm3 (Scratch Model 3D)</p>
+        <p class="centered-text">View SM3 files <a href="https://scratch.mit.edu/projects/733723955"
+                class="centered-text">here</a></p>
         <hr>
         <div>
             <label for="objFile">Select OBJ file:</label>
             <input type="file" id="objFile" name="objFile" accept=".obj">
         </div>
         <div>
-            <input type="checkbox" id="enablePos" name="enablePos" checked>
-            <label for="enablePos">Enable Position? (v)</label>
-            <br>
-            <input type="checkbox" id="enableTex" name="enableTex">
-            <label for="enableTex">Enable UV? (vt)</label>
-            <br>
-            <input type="checkbox" id="enableNorm" name="enableNorm">
-            <label for="enableNorm">Enable Normals? (vn)</label>
+            <div>
+                <label for="floatAcc">Float Accuracy:</label>
+                <input type="number" id="floatAcc" name="floatAcc" min="1" max="5" step="1" value="2"> digits
+            </div>
+
+            <div>
+                <input type="checkbox" id="enablePos" name="enablePos" checked>
+                <label for="enablePos">Enable Position? (v)</label>
+            </div>
+
+            <div>
+                <input type="checkbox" id="enableTex" name="enableTex">
+                <label for="enableTex">Enable UV? (vt)</label>
+            </div>
+
+            <div>
+                <input type="checkbox" id="enableNorm" name="enableNorm">
+                <label for="enableNorm">Enable Normals? (vn)</label>
+            </div>
         </div>
         <hr>
     </div>
     <div>
         <button type="button" onclick="downloadSM3(
             document.getElementById('objFile').files[0],
+            document.getElementById('floatAcc').value,
             document.getElementById('enablePos').checked,
             document.getElementById('enableTex').checked,
             document.getElementById('enableNorm').checked
@@ -53,7 +67,7 @@
             Download Scratch Model
         </button>
         <script>
-            async function downloadSM3(file, parsePos, parseTex, parseNorm) {
+            async function downloadSM3(file, floatAcc, parsePos, parseTex, parseNorm) {
                 if (!file) { alert('Error: No file chosen'); return; }
 
                 const fileName = file.name;
@@ -61,7 +75,7 @@
 
                 const dotIndex = fileName.lastIndexOf(".");
                 const exportName = fileName.substring(0, dotIndex) + ".sm3";
-                const SM3 = convertOBJtoSM3(fileContents.split("\n"), parsePos, parseTex, parseNorm);
+                const SM3 = convertOBJtoSM3(fileContents.split("\n"), floatAcc, parsePos, parseTex, parseNorm);
                 downloadFile(exportName, SM3.exported.join("\n"));
             }
 
