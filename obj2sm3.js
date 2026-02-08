@@ -1,82 +1,182 @@
+"use strict";
+
 const charset = '!\"#$%&\'()*+-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~';
 const base = charset.length;
 
-function convertOBJtoSM3(obj, floatAcc, parsePos, parseTex, parseNorm) {
-    const state = {
-        accuracy: (base ** floatAcc) - 1,
-        currentMaterial: "",
-        hasPos: false,
-        hasTex: false,
-        hasNorm: false
-    };
-    const blackList = [
-        parsePos ? null : "v",
-        parseTex ? null : "vt",
-        parseNorm ? null : "vn"
-    ];
-    console.log(blackList);
-    let exported = [];
-    let lastCmd = ""
-    for (const line of obj) {
-        //get parts and commands
-        const parts = line.split(" ");
-        const cmd = parts.shift();
-        //dont parse unknown or blacklisted commands
-        if (blackList.includes(cmd)) { continue; }
-        const out = compressCmd(cmd, parts, state); //returns a list
-        if (out != null) {
-            if (cmd != lastCmd) {
-                exported.push(cmd);
-                lastCmd = cmd;
-            }
-            exported.push(out.join(","));
-        }
+class SM3Mesh {
+    constructor(obj) {
+        this.data = { meshes: parseOBJ(obj)};
+        console.log(this.data);
     }
-    exported.push("");
-    exported = ["*", ...Object.values(state)].concat(exported);
-    console.log(state);
-    return { exported, ...state };
+
+    parseSM3(options) {
+        console.log(options);
+
+        let currentMaterial = null;
+        let exported = [];
+
+        let hasPos, hasTex, hasNorm = false;
+
+        // parse meshes
+        for (const name in this.data.meshes) {
+            const mesh = this.data.meshes[name];
+
+            // add mesh object
+            exported.push("o");
+            exported.push(name);
+
+            // process vertices (v)
+            if (options.parsePos && mesh.v) {
+                hasPos = true;
+                exported.push("v");
+                for (const vertex of mesh.v) {
+                    exported.push(vertex.map(v => parseFloat(v)).join(","));
+                }
+            }
+
+            // process texture coordinates (vt)
+            if (options.parseTex && mesh.vt) {
+                hasTex = true;
+                exported.push("vt");
+                for (const texCoord of mesh.vt) {
+                    const compressed = texCoord.map(v =>
+                        compressInt(Math.floor(v * options.floatAcc))
+                    );
+                    exported.push(compressed.join(","));
+                }
+            }
+
+            // process normals (vn)
+            if (options.parseNorm && mesh.vn) {
+                hasNorm = true;
+                exported.push("vn");
+                for (const normal of mesh.vn) {
+                    const [x, y, z] = normal.map(v => parseFloat(v));
+                    // convert normal to 2 angles compressed to int
+                    const PI2 = 2 * Math.PI
+                    const pitch = compressInt(Math.floor(((Math.atan2(x, z) / PI2) + 0.5) * options.floatAcc));
+                    const yaw = compressInt(Math.floor(((Math.asin(y) / PI2) + 0.5) * options.floatAcc));
+                    exported.push([pitch, yaw].join(","));
+                }
+            }
+
+            // process faces (f)
+            if (options.parseFaces && mesh.f) {
+                for (const face of mesh.f) {
+                    // parse the material if this one is different
+                    if (face.material != currentMaterial) {
+                        currentMaterial = face.material;
+                        exported.push("usemtl");
+                        exported.push(currentMaterial);
+                        exported.push("f");
+                    }
+
+                    // add face indices
+                    const indices = [];
+                    for (const index of face.indices) {
+                        if (index.v && hasPos) indices.push(compressInt(index.v));
+                        if (index.vt && hasTex) indices.push(compressInt(index.vt));
+                        if (index.vn && hasNorm) indices.push(compressInt(index.vn));
+                    }
+                    exported.push(indices.join(","));
+                }
+            }
+        }
+
+        exported.push("");
+        return exported;
+    }
+
 }
 
-function compressCmd(cmd, data, state) {
-    switch (cmd) {
-        case "o":
-            return data;
-        case "v":
-            state.hasPos = true;
-            return data.map(i => parseFloat(i));
-            //return data.map(i => compressInt(Math.floor(parseFloat(i) * state.accuracy)));
-        case "vt":
-            state.hasTex = true;
-            return data.map(i => compressInt(Math.floor(i * state.accuracy)));
-        case "vn":
-            state.hasNorm = true;
-            //get normal vector
-            const [x, y, z] = data.map(i => parseFloat(i));
-            //convert normal to 2 angles (0-1) then compress to int
-            const alpha = compressInt(Math.floor((Math.atan2(x, z) / (2 * Math.PI) + 0.5) * state.accuracy));
-            const beta = compressInt(Math.floor((Math.asin(y) / (2 * Math.PI) + 0.5) * state.accuracy));
-            return [alpha, beta];
-        case "f":
-            return data.flatMap(i => {
-                const [v, vt, vn] = i.split("/").map(n => parseInt(n));
-                const indices = [];
-                if (v && state.hasPos) indices.push(compressInt(v - 1)); //position
-                if (vt && state.hasTex) indices.push(compressInt(vt - 1)); //texture
-                if (vn && state.hasNorm) indices.push(compressInt(vn - 1)); //normal
-                return indices;
-            });
-        case "usemtl":
-            //dont parse materials if nothing changed
-            let temp = data[0];
-            if (temp == state.currentMaterial) { return null; }
-            else {
-                state.currentMaterial = temp;
-                return [temp];
-            }
-        default:
-            return null;
+function parseOBJ(obj) {
+    let data = {};
+    let state = {};
+    let currentObject = null;
+    let currentMaterial = null;
+    for (const line of obj) {
+        const parts = line.split(" ");
+        const cmd = parts.shift();
+
+        switch (cmd) {
+            case "o":
+                currentObject = parts[0];
+                data[currentObject] = { v: [], vt: [], vn: [], f: [] };
+                break;
+            case "v":
+                state.hasPos = true;
+                data[currentObject].v.push(parts.map(i => parseFloat(i)));
+                break;
+            case "vt":
+                state.hasTex = true;
+                data[currentObject].vt.push(parts.map(i => parseFloat(i)));
+                break;
+            case "vn":
+                state.hasNorm = true;
+                data[currentObject].vn.push(parts.map(i => parseFloat(i)));
+                break;
+            case "f":
+                const face = { material: currentMaterial, indices: [] };
+                parts.forEach(p => {
+                    const [v, vt, vn] = p.split("/").map(n => parseInt(n));
+
+                    let ind = {};
+                    if (v && state.hasPos) ind.v = (v - 1); //position
+                    if (vt && state.hasTex) ind.vt = (vt - 1); //texture
+                    if (vn && state.hasNorm) ind.vn = (vn - 1); //normal
+                    face.indices.push(ind);
+                });
+                data[currentObject].f.push(face)
+
+                break;
+            case "usemtl":
+                currentMaterial = parts.join(" ");
+                break;
+        }
+
     }
+    return data;
+}
+
+function parseMTL(mtl) {
+    let data = {};
+    let currentMaterial = null;
+    for (const line of mtl) {
+        const parts = line.split(" ");
+        const cmd = parts.shift();
+
+        switch (cmd) {
+            case "newmtl":
+                currentMaterial = parts.join(" ");
+                data[currentMaterial] = {};
+                break;
+            case "Ns":
+                data[currentMaterial].Ns = parseFloat(parts[0]);
+                break;
+            case "Ka":
+                data[currentMaterial].Ka = parts.map(i => parseFloat(i));
+                break;
+            case "Kd":
+                data[currentMaterial].Kd = parts.map(i => parseFloat(i));
+                break;
+            case "Ks":
+                data[currentMaterial].Ks = parts.map(i => parseFloat(i));
+                break;
+            case "Ke":
+                data[currentMaterial].Ke = parts.map(i => parseFloat(i));
+                break;
+            case "Ni":
+                data[currentMaterial].Ni = parseFloat(parts[0]);
+                break;
+            case "d":
+                data[currentMaterial].d = parseFloat(parts[0]);
+                break;
+            case "illum":
+                data[currentMaterial].illum = parseFloat(parts[0]);
+                break;
+        }
+    }
+    return
 }
 
 function compressFixedInt(n, d) {

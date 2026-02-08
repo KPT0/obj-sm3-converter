@@ -40,6 +40,11 @@
             </div>
 
             <div>
+                <input type="checkbox" id="enableFaces" name="enableFaces" checked>
+                <label for="enableFaces">Enable Faces? (f)</label>
+            </div>
+
+            <div>
                 <input type="checkbox" id="enablePos" name="enablePos" checked>
                 <label for="enablePos">Enable Position? (v)</label>
             </div>
@@ -59,15 +64,18 @@
     <div>
         <button type="button" onclick="downloadSM3(
             document.getElementById('objFile').files[0],
-            document.getElementById('floatAcc').value,
-            document.getElementById('enablePos').checked,
-            document.getElementById('enableTex').checked,
-            document.getElementById('enableNorm').checked
+            {
+            floatAcc: (2**(document.getElementById('floatAcc').value)) - 1,
+            parseFaces: document.getElementById('enableFaces').checked,
+            parsePos: document.getElementById('enablePos').checked,
+            parseTex: document.getElementById('enableTex').checked,
+            parseNorm: document.getElementById('enableNorm').checked
+            }
         )">
             Download Scratch Model
         </button>
         <script>
-            async function downloadSM3(file, floatAcc, parsePos, parseTex, parseNorm) {
+            async function downloadSM3(file, options) {
                 if (!file) { alert('Error: No file chosen'); return; }
 
                 const fileName = file.name;
@@ -75,8 +83,9 @@
 
                 const dotIndex = fileName.lastIndexOf(".");
                 const exportName = fileName.substring(0, dotIndex) + ".sm3";
-                const SM3 = convertOBJtoSM3(fileContents.split("\n"), floatAcc, parsePos, parseTex, parseNorm);
-                downloadFile(exportName, SM3.exported.join("\n"));
+                const SM3 = new SM3Mesh(fileContents.split("\n"));
+                SM3.parseSM3(options)
+                downloadFile(exportName, SM3.parseSM3(options).join("\n"));
             }
 
             function downloadFile(name, content) {
