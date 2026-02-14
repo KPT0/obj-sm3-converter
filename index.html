@@ -5,98 +5,63 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>obj2sm3</title>
-    <style>
-        .centered-text {
-            text-align: center;
-        }
-
-        .section {
-            display: inline-block;
-            text-align: left;
-        }
-
-        body {
-            font-family: 'Gill Sans', 'Gill Sans MT', Calibri, 'Trebuchet MS', sans-serif;
-        }
-    </style>
-    <script src="./obj2sm3.js"></script>
+    <link rel="stylesheet" href="style.css">
+    <script defer src="./sm3.js"></script>
+    <script defer src="./main.js"></script>
 </head>
 
-<body class="centered-text">
-    <h1>obj2sm3</h1>
+<body>
+    <div class="title">
+        <h1>Scratch Model 3D</h1>
+        <p>A tool that converts OBJ files to a Scratch Model</p>
+    </div>
     <div class="section">
-        <p class="centered-text">A tool that converts .obj to .sm3 (Scratch Model 3D)</p>
-        <p class="centered-text">View SM3 files <a href="https://scratch.mit.edu/projects/733723955"
-                class="centered-text">here</a></p>
-        <hr>
         <div>
             <label for="objFile">Select OBJ file:</label>
             <input type="file" id="objFile" name="objFile" accept=".obj">
         </div>
-        <div>
-            <div>
-                <label for="floatAcc">Float Accuracy:</label>
-                <input type="number" id="floatAcc" name="floatAcc" min="1" max="5" step="1" value="2"> digits
-            </div>
 
-            <div>
-                <input type="checkbox" id="enableFaces" name="enableFaces" checked>
-                <label for="enableFaces">Enable Faces? (f)</label>
-            </div>
+        <hr>
 
-            <div>
-                <input type="checkbox" id="enablePos" name="enablePos" checked>
-                <label for="enablePos">Enable Position? (v)</label>
-            </div>
+        <h2>SM3 Export Settings</h2>
 
-            <div>
-                <input type="checkbox" id="enableTex" name="enableTex">
-                <label for="enableTex">Enable UV? (vt)</label>
-            </div>
+        <div class="settings">
+            <label for="floatAcc">Float Accuracy:</label>
+            <input type="number" id="floatAcc" name="floatAcc" min="1" max="5" step="1" value="2"> digits
 
-            <div>
-                <input type="checkbox" id="enableNorm" name="enableNorm">
-                <label for="enableNorm">Enable Normals? (vn)</label>
-            </div>
+            <br>
+
+            <input type="checkbox" id="enableFaces" name="enableFaces" checked>
+            <label for="enableFaces">Enable Faces? (f)</label>
+
+            <br>
+
+            <input type="checkbox" id="enablePos" name="enablePos" checked>
+            <label for="enablePos">Enable Position? (v)</label>
+
+            <br>
+
+            <input type="checkbox" id="enableTex" name="enableTex">
+            <label for="enableTex">Enable UV? (vt)</label>
+
+            <br>
+
+            <input type="checkbox" id="enableNorm" name="enableNorm">
+            <label for="enableNorm">Enable Normals? (vn)</label>
         </div>
         <hr>
-    </div>
-    <div>
-        <button type="button" onclick="downloadSM3(
-            document.getElementById('objFile').files[0],
-            {
-            floatAcc: (2**(document.getElementById('floatAcc').value)) - 1,
-            parseFaces: document.getElementById('enableFaces').checked,
-            parsePos: document.getElementById('enablePos').checked,
-            parseTex: document.getElementById('enableTex').checked,
-            parseNorm: document.getElementById('enableNorm').checked
-            }
-        )">
-            Download Scratch Model
+
+        <button id="downloadSM3">
+            Download SM3
         </button>
-        <script>
-            async function downloadSM3(file, options) {
-                if (!file) { alert('Error: No file chosen'); return; }
-
-                const fileName = file.name;
-                const fileContents = await file.text();
-
-                const dotIndex = fileName.lastIndexOf(".");
-                const exportName = fileName.substring(0, dotIndex) + ".sm3";
-                const SM3 = new SM3Mesh(fileContents.split("\n"));
-                SM3.parseSM3(options)
-                downloadFile(exportName, SM3.parseSM3(options).join("\n"));
-            }
-
-            function downloadFile(name, content) {
-                const a = document.createElement("a");
-                a.href = URL.createObjectURL(new Blob([content]));
-                a.download = name;
-                a.click();
-                URL.revokeObjectURL(a.href);
-            }
-        </script>
     </div>
+    <footer>
+        <p>
+            <a href="https://scratch.mit.edu/users/KryptoScratcher">Scratch</a>
+            |
+            <a href="https://github.com/KPT0/obj-sm3-converter">Source Code</a>
+        </p>
+    </footer>
 </body>
 
 </html>

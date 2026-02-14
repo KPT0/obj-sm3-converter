@@ -1,44 +1,48 @@
-"use strict";
-
 const charset = '!\"#$%&\'()*+-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~';
 const base = charset.length;
 
-class SM3Mesh {
+class ScratchMesh {
     constructor(obj) {
-        this.data = { meshes: parseOBJ(obj)};
-        console.log(this.data);
+        this.meshes = parseOBJ(obj);
+        this.header = { author: "KryptoScratcher", version: "1.0.0" };
     }
 
-    parseSM3(options) {
+    toSM3(options) {
         console.log(options);
 
-        let currentMaterial = null;
+        let currentMaterial;
         let exported = [];
 
         let hasPos, hasTex, hasNorm = false;
 
+        exported.push("*");
+        
+        for (const i in this.header) {
+            exported.push(this.header[i]);
+        }
+
         // parse meshes
-        for (const name in this.data.meshes) {
-            const mesh = this.data.meshes[name];
+        for (const name in this.meshes) {
+            const mesh = this.meshes[name];
 
             // add mesh object
             exported.push("o");
             exported.push(name);
 
             // process vertices (v)
-            if (options.parsePos && mesh.v) {
+            if (options.parsePos && (mesh.geometry.v.length > 0)) {
                 hasPos = true;
                 exported.push("v");
-                for (const vertex of mesh.v) {
+                for (const vertex of mesh.geometry.v) {
                     exported.push(vertex.map(v => parseFloat(v)).join(","));
                 }
             }
 
             // process texture coordinates (vt)
-            if (options.parseTex && mesh.vt) {
+            if (options.parseTex && (mesh.geometry.vt.length > 0)) {
                 hasTex = true;
                 exported.push("vt");
-                for (const texCoord of mesh.vt) {
+                for (const texCoord of mesh.geometry.vt) {
                     const compressed = texCoord.map(v =>
                         compressInt(Math.floor(v * options.floatAcc))
                     );
@@ -47,10 +51,10 @@ class SM3Mesh {
             }
 
             // process normals (vn)
-            if (options.parseNorm && mesh.vn) {
+            if (options.parseNorm && (mesh.geometry.vn.length > 0)) {
                 hasNorm = true;
                 exported.push("vn");
-                for (const normal of mesh.vn) {
+                for (const normal of mesh.geometry.vn) {
                     const [x, y, z] = normal.map(v => parseFloat(v));
                     // convert normal to 2 angles compressed to int
                     const PI2 = 2 * Math.PI
@@ -61,8 +65,8 @@ class SM3Mesh {
             }
 
             // process faces (f)
-            if (options.parseFaces && mesh.f) {
-                for (const face of mesh.f) {
+            if (options.parseFaces && (mesh.geometry.f.length > 0)) {
+                for (const face of mesh.geometry.f) {
                     // parse the material if this one is different
                     if (face.material != currentMaterial) {
                         currentMaterial = face.material;
@@ -95,25 +99,21 @@ function parseOBJ(obj) {
     let currentObject = null;
     let currentMaterial = null;
     for (const line of obj) {
-        const parts = line.split(" ");
+        const parts = line.split(/\s+/);
         const cmd = parts.shift();
-
         switch (cmd) {
             case "o":
-                currentObject = parts[0];
-                data[currentObject] = { v: [], vt: [], vn: [], f: [] };
+                currentObject = parts.join(" ");
+                data[currentObject] = { meta: {}, geometry: { v: [], vt: [], vn: [], f: [] } };
                 break;
             case "v":
-                state.hasPos = true;
-                data[currentObject].v.push(parts.map(i => parseFloat(i)));
+                data[currentObject].geometry.v.push(parts.map(i => parseFloat(i)));
                 break;
             case "vt":
-                state.hasTex = true;
-                data[currentObject].vt.push(parts.map(i => parseFloat(i)));
+                data[currentObject].geometry.vt.push(parts.map(i => parseFloat(i)));
                 break;
             case "vn":
-                state.hasNorm = true;
-                data[currentObject].vn.push(parts.map(i => parseFloat(i)));
+                data[currentObject].geometry.vn.push(parts.map(i => parseFloat(i)));
                 break;
             case "f":
                 const face = { material: currentMaterial, indices: [] };
@@ -121,13 +121,12 @@ function parseOBJ(obj) {
                     const [v, vt, vn] = p.split("/").map(n => parseInt(n));
 
                     let ind = {};
-                    if (v && state.hasPos) ind.v = (v - 1); //position
-                    if (vt && state.hasTex) ind.vt = (vt - 1); //texture
-                    if (vn && state.hasNorm) ind.vn = (vn - 1); //normal
+                    if (v && (data[currentObject].geometry.v.length > 0)) ind.v = (v - 1); //position
+                    if (vt && (data[currentObject].geometry.vt.length > 0)) ind.vt = (vt - 1); //texture
+                    if (vn && (data[currentObject].geometry.vn.length > 0)) ind.vn = (vn - 1); //normal
                     face.indices.push(ind);
                 });
-                data[currentObject].f.push(face)
-
+                data[currentObject].geometry.f.push(face)
                 break;
             case "usemtl":
                 currentMaterial = parts.join(" ");
