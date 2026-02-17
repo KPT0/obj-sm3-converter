@@ -13,10 +13,8 @@ class ScratchMesh {
         let currentMaterial;
         let exported = [];
 
-        let hasPos, hasTex, hasNorm = false;
-
         exported.push("*");
-        
+        exported.push(options.floatAcc)
         for (const i in this.header) {
             exported.push(this.header[i]);
         }
@@ -30,8 +28,7 @@ class ScratchMesh {
             exported.push(name);
 
             // process vertices (v)
-            if (options.parsePos && (mesh.geometry.v.length > 0)) {
-                hasPos = true;
+            if (options.parsePos && mesh.geometry.v.length > 0) {
                 exported.push("v");
                 for (const vertex of mesh.geometry.v) {
                     exported.push(vertex.map(v => parseFloat(v)).join(","));
@@ -39,8 +36,7 @@ class ScratchMesh {
             }
 
             // process texture coordinates (vt)
-            if (options.parseTex && (mesh.geometry.vt.length > 0)) {
-                hasTex = true;
+            if (options.parseTex && mesh.geometry.vt.length > 0) {
                 exported.push("vt");
                 for (const texCoord of mesh.geometry.vt) {
                     const compressed = texCoord.map(v =>
@@ -51,8 +47,7 @@ class ScratchMesh {
             }
 
             // process normals (vn)
-            if (options.parseNorm && (mesh.geometry.vn.length > 0)) {
-                hasNorm = true;
+            if (options.parseNorm && mesh.geometry.vn.length > 0) {
                 exported.push("vn");
                 for (const normal of mesh.geometry.vn) {
                     const [x, y, z] = normal.map(v => parseFloat(v));
@@ -65,10 +60,11 @@ class ScratchMesh {
             }
 
             // process faces (f)
-            if (options.parseFaces && (mesh.geometry.f.length > 0)) {
+            if (options.parseFaces && mesh.geometry.f.length > 0) {
+                exported.push("f")
                 for (const face of mesh.geometry.f) {
                     // parse the material if this one is different
-                    if (face.material != currentMaterial) {
+                    if (face.material !== currentMaterial) {
                         currentMaterial = face.material;
                         exported.push("usemtl");
                         exported.push(currentMaterial);
@@ -78,9 +74,9 @@ class ScratchMesh {
                     // add face indices
                     const indices = [];
                     for (const index of face.indices) {
-                        if (index.v && hasPos) indices.push(compressInt(index.v));
-                        if (index.vt && hasTex) indices.push(compressInt(index.vt));
-                        if (index.vn && hasNorm) indices.push(compressInt(index.vn));
+                        if (index.v && (options.parsePos && mesh.geometry.v.length > 0)) indices.push(compressInt(index.v));
+                        if (index.vt && (options.parseTex && mesh.geometry.vt.length > 0)) indices.push(compressInt(index.vt));
+                        if (index.vn && (options.parseNorm && mesh.geometry.vn.length > 0)) indices.push(compressInt(index.vn));
                     }
                     exported.push(indices.join(","));
                 }

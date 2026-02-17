@@ -3,18 +3,17 @@ const version = "1.0.0";
 const element = (element) => document.getElementById(element);
 
 const objFile = document.getElementById("objFile");
-const canvas = document.getElementById('canvas');
-const versionNum = document.getElementById('versionNum');
-// element("versionNum").textContent = version;
+const canvas = document.getElementById("canvas");
+const versionNum = document.getElementById("versionNum");
 
 function getMeshSettings() {
 	return {
 		version: version,
-		floatAcc: (2 ** (element('floatAcc').value)) - 1,
-		parseFaces: element('enableFaces').checked,
-		parsePos: element('enablePos').checked,
-		parseTex: element('enableTex').checked,
-		parseNorm: element('enableNorm').checked
+		floatAcc: (charset.length ** (element("floatAcc").value)) - 1,
+		parseFaces: element("enableFaces").checked,
+		parsePos: element("enablePos").checked,
+		parseTex: element("enableTex").checked,
+		parseNorm: element("enableNorm").checked
 	}
 }
 
@@ -25,7 +24,7 @@ element("objFile").addEventListener("change", async function (event) {
 
 element("downloadSM3").addEventListener("click", async function (event) {
 	const file = element("objFile").files[0];
-	if (!file) { alert('Error: No file chosen'); return; }
+	if (!file) { alert("Error: No file chosen"); return; }
 
 	const fileName = file.name;
 	const fileContents = await file.text();
