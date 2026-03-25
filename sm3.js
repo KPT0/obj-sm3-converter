@@ -1,10 +1,10 @@
-const charset = '!\"#$%&\'()*+-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~';
-
+const charset = '!"#$%&\'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~ ¡¢£¤¥¦§¨©ª«¬­®¯°±²³´µ¶·¸¹º»¼½¾¿ÀÁÂÃÄÅÆÇÈÉÊËÌÍÎÏÐÑÒÓÔÕÖ×ØÙÚÛÜÝÞßàáâãäåæçèéêëìíîïðñòóôõö÷øùúûüýþÿ'
+const DELIMETER = "	";
 const encoder = new TextEncoder();
 
 class ScratchMesh {
     constructor(obj) {
-        this.header = { author: "KryptoScratcher", version: "1.2.0" };
+        this.header = { author: "KryptoScratcher", version: "1.3.0" };
         this.meshes = parseOBJ(obj);
     }
 
@@ -15,11 +15,13 @@ class ScratchMesh {
         let exported = [];
 
         exported.push("*");
-        exported.push(options.floatAcc)
-        for (const i in this.header) {
-            exported.push(this.header[i]);
-        }
-
+        exported.push([
+            "SM3",
+            this.header.author,
+            this.header.version, 
+            options.floatAcc
+        ].join(DELIMETER));
+        
         // parse meshes
         for (const [name, mesh] of Object.entries(this.meshes)) {
 
@@ -36,7 +38,7 @@ class ScratchMesh {
             if (options.parsePos && vPosition.length > 0) {
                 exported.push("v");
                 for (const vertex of vPosition) {
-                    exported.push(vertex.map(v => parseFloat(v)).join(","));
+                    exported.push(vertex.map(v => parseFloat(v)).join(DELIMETER));
                 }
             }
 
@@ -47,7 +49,7 @@ class ScratchMesh {
                     const compressed = texCoord.map(v =>
                         compressInt(Math.floor(v * options.floatAcc))
                     );
-                    exported.push(compressed.join(","));
+                    exported.push(compressed.join(DELIMETER));
                 }
             }
 
@@ -60,7 +62,7 @@ class ScratchMesh {
                     const PI2 = 2 * Math.PI
                     const pitch = compressInt(Math.floor(((Math.atan2(x, z) / PI2) + 0.5) * options.floatAcc));
                     const yaw = compressInt(Math.floor(((Math.asin(y) / PI2) + 0.5) * options.floatAcc));
-                    exported.push([pitch, yaw].join(","));
+                    exported.push([pitch, yaw].join(DELIMETER));
                 }
             }
 
@@ -83,7 +85,7 @@ class ScratchMesh {
                         if (vTexture.length > 0) indices.push(compressInt(index.vt ?? 0));
                         if (vNormal.length > 0) indices.push(compressInt(index.vn ?? 0));
                     }
-                    exported.push(indices.join(","));
+                    exported.push(indices.join(DELIMETER));
                 }
             }
         }
@@ -96,6 +98,7 @@ class ScratchMesh {
         let chunks = [];
 
         // header
+        chunks.push(new Uint8Array(binString("SM3B")).buffer);
         chunks.push(new Uint8Array(binString(this.header.author)).buffer); // author
         chunks.push(new Uint8Array(binString(this.header.version)).buffer); // version
 
