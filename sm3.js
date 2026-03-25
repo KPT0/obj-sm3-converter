@@ -1,10 +1,11 @@
 const charset = '!\"#$%&\'()*+-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~';
-const base = charset.length;
+
+const encoder = new TextEncoder();
 
 class ScratchMesh {
     constructor(obj) {
+        this.header = { author: "KryptoScratcher", version: "1.2.0" };
         this.meshes = parseOBJ(obj);
-        this.header = { author: "KryptoScratcher", version: "1.0.0" };
     }
 
     toSM3(options) {
@@ -20,25 +21,29 @@ class ScratchMesh {
         }
 
         // parse meshes
-        for (const name in this.meshes) {
-            const mesh = this.meshes[name];
+        for (const [name, mesh] of Object.entries(this.meshes)) {
+
+            const vPosition = options.parsePos ? mesh.geometry.v : [];
+            const vTexture = options.parseTex ? mesh.geometry.vt : [];
+            const vNormal = options.parseNorm ? mesh.geometry.vn : [];
+            const fFaces = options.parseFaces ? mesh.geometry.f : [];
 
             // add mesh object
             exported.push("o");
             exported.push(name);
 
             // process vertices (v)
-            if (options.parsePos && mesh.geometry.v.length > 0) {
+            if (options.parsePos && vPosition.length > 0) {
                 exported.push("v");
-                for (const vertex of mesh.geometry.v) {
+                for (const vertex of vPosition) {
                     exported.push(vertex.map(v => parseFloat(v)).join(","));
                 }
             }
 
             // process texture coordinates (vt)
-            if (options.parseTex && mesh.geometry.vt.length > 0) {
+            if (options.parseTex && vTexture.length > 0) {
                 exported.push("vt");
-                for (const texCoord of mesh.geometry.vt) {
+                for (const texCoord of vTexture) {
                     const compressed = texCoord.map(v =>
                         compressInt(Math.floor(v * options.floatAcc))
                     );
@@ -47,9 +52,9 @@ class ScratchMesh {
             }
 
             // process normals (vn)
-            if (options.parseNorm && mesh.geometry.vn.length > 0) {
+            if (options.parseNorm && vNormal.length > 0) {
                 exported.push("vn");
-                for (const normal of mesh.geometry.vn) {
+                for (const normal of vNormal) {
                     const [x, y, z] = normal.map(v => parseFloat(v));
                     // convert normal to 2 angles compressed to int
                     const PI2 = 2 * Math.PI
@@ -60,9 +65,9 @@ class ScratchMesh {
             }
 
             // process faces (f)
-            if (options.parseFaces && mesh.geometry.f.length > 0) {
+            if (options.parseFaces && fFaces.length > 0) {
                 exported.push("f")
-                for (const face of mesh.geometry.f) {
+                for (const face of fFaces) {
                     // parse the material if this one is different
                     if (face.material !== currentMaterial) {
                         currentMaterial = face.material;
@@ -74,9 +79,9 @@ class ScratchMesh {
                     // add face indices
                     const indices = [];
                     for (const index of face.indices) {
-                        if (index.v && (options.parsePos && mesh.geometry.v.length > 0)) indices.push(compressInt(index.v));
-                        if (index.vt && (options.parseTex && mesh.geometry.vt.length > 0)) indices.push(compressInt(index.vt));
-                        if (index.vn && (options.parseNorm && mesh.geometry.vn.length > 0)) indices.push(compressInt(index.vn));
+                        if (vPosition.length > 0) indices.push(compressInt(index.v ?? 0));
+                        if (vTexture.length > 0) indices.push(compressInt(index.vt ?? 0));
+                        if (vNormal.length > 0) indices.push(compressInt(index.vn ?? 0));
                     }
                     exported.push(indices.join(","));
                 }
@@ -87,13 +92,91 @@ class ScratchMesh {
         return exported;
     }
 
+    toSM3B(options) {
+        let chunks = [];
+
+        // header
+        chunks.push(new Uint8Array(binString(this.header.author)).buffer); // author
+        chunks.push(new Uint8Array(binString(this.header.version)).buffer); // version
+
+        // mesh count
+        chunks.push(new Uint16Array([Object.keys(this.meshes).length]).buffer);
+        for (const [meshName, mesh] of Object.entries(this.meshes)) {
+
+            const vPosition = options.parsePos ? mesh.geometry.v : [];
+            const vTexture = options.parseTex ? mesh.geometry.vt : [];
+            const vNormal = options.parseNorm ? mesh.geometry.vn : [];
+            const fFaces = options.parseFaces ? mesh.geometry.f : [];
+
+            // mesh name
+            chunks.push(new Uint8Array(binString(meshName)).buffer);
+
+            // vertex positions
+            chunks.push(new Uint32Array([vPosition.length]).buffer);
+            if (vPosition.length > 0) {
+                var vPool = [];
+                for (const data of vPosition) {
+                    vPool.push(...data);
+                }
+                chunks.push(new Float32Array(vPool).buffer);
+            }
+
+            // vertex texture coordinates
+            chunks.push(new Uint32Array([vTexture.length]).buffer);
+            if (vTexture.length > 0) {
+                var vtPool = [];
+                for (const data of vTexture) {
+                    vtPool.push(...data);
+                }
+                chunks.push(new Float32Array(vtPool).buffer);
+            }
+
+            // vertex normals
+            chunks.push(new Uint32Array([vNormal.length]).buffer);
+            if (vNormal.length > 0) {
+                var vnPool = [];
+                for (const data of vNormal) {
+                    vnPool.push(...data);
+                }
+                chunks.push(new Float32Array(vnPool).buffer);
+            }
+
+
+            // faces
+            chunks.push(new Uint32Array([fFaces.length]).buffer);
+            if (fFaces.length > 0) {
+                for (const face of fFaces) {
+                    chunks.push(new Uint8Array(face.material).buffer);
+                    chunks.push(new Uint8Array([face.indices.length]).buffer);
+                    var indices = [];
+                    for (const ind of face.indices) {
+                        if (vPosition.length > 0) indices.push(ind.v ?? 0);
+                        if (vTexture.length > 0) indices.push(ind.vt ?? 0);
+                        if (vNormal.length > 0) indices.push(ind.vn ?? 0);
+                    }
+                    chunks.push(new Uint32Array(indices).buffer);
+                }
+            }
+        }
+
+        // Combine all chunks
+        const totalSize = chunks.reduce((sum, chunk) => sum + chunk.byteLength, 0);
+        const result = new Uint8Array(totalSize);
+
+        let offset = 0;
+        for (const chunk of chunks) {
+            result.set(new Uint8Array(chunk), offset);
+            offset += chunk.byteLength;
+        }
+        return result.buffer;
+    }
 }
 
 function parseOBJ(obj) {
     let data = {};
     let state = {};
-    let currentObject = null;
-    let currentMaterial = null;
+    let currentObject = "";
+    let currentMaterial;
     for (const line of obj) {
         const parts = line.split(/\s+/);
         const cmd = parts.shift();
@@ -130,6 +213,7 @@ function parseOBJ(obj) {
         }
 
     }
+    console.log(data);
     return data;
 }
 
@@ -178,8 +262,8 @@ function compressFixedInt(n, d) {
     n = parseInt(n);
     let result = "";
     for (let i = 0; i < d; i++) {
-        result += charset[n % base];
-        n = Math.floor(n / base);
+        result += charset[n % charset.length];
+        n = Math.floor(n / charset.length);
     }
     return result;
 }
@@ -189,8 +273,13 @@ function compressInt(n) {
     if (n === 0) { return charset[0]; }
     let result = "";
     while (n > 0) {
-        result += charset[n % base];
-        n = Math.floor(n / base);
+        result += charset[n % charset.length];
+        n = Math.floor(n / charset.length);
     }
     return result;
+}
+
+function binString(string) {
+    const str = encoder.encode(string);
+    return [str.length, ...str]
 }
