@@ -11,45 +11,45 @@
 </head>
 
 <body>
-    <div class="title">
+    <header class="title">
         <h1>Scratch Model 3D</h1>
         <p>A tool that converts OBJ files to a Scratch Model</p>
-    </div>
+    </header>
     <div class="section">
         <div>
             <label for="objFile">Select OBJ file:</label>
             <input type="file" id="objFile" name="objFile" accept=".obj">
         </div>
 
-        <div id="meshInfo" class="settings"></div>
-
         <hr>
 
-        <h2>SM3 Export Settings</h2>
 
         <div class="settings">
-            <label for="floatAcc">Float Accuracy:</label>
-            <input type="number" id="floatAcc" name="floatAcc" min="1" max="5" step="1" value="2"> digits
+            <div class="header">Export Settings</div>
+            <div>
+                <label for="floatAcc">Float Accuracy:</label>
+                <input type="number" id="floatAcc" name="floatAcc" min="1" max="5" step="1" value="2"> digits
 
-            <br>
+                <br>
 
-            <input type="checkbox" id="enableFaces" name="enableFaces" checked>
-            <label for="enableFaces">Enable Faces? (f)</label>
+                <input type="checkbox" id="enableFaces" name="enableFaces" checked>
+                <label for="enableFaces">Enable Faces? (f)</label>
 
-            <br>
+                <br>
 
-            <input type="checkbox" id="enablePos" name="enablePos" checked>
-            <label for="enablePos">Enable Position? (v)</label>
+                <input type="checkbox" id="enablePos" name="enablePos" checked>
+                <label for="enablePos">Enable Position? (v)</label>
 
-            <br>
+                <br>
 
-            <input type="checkbox" id="enableTex" name="enableTex">
-            <label for="enableTex">Enable UV? (vt)</label>
+                <input type="checkbox" id="enableTex" name="enableTex">
+                <label for="enableTex">Enable UV? (vt)</label>
 
-            <br>
+                <br>
 
-            <input type="checkbox" id="enableNorm" name="enableNorm">
-            <label for="enableNorm">Enable Normals? (vn)</label>
+                <input type="checkbox" id="enableNorm" name="enableNorm">
+                <label for="enableNorm">Enable Normals? (vn)</label>
+            </div>
         </div>
         <hr>
         <button id="downloadSM3">
