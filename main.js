@@ -28,6 +28,35 @@ function downloadCanvas(name, content) {
 	URL.revokeObjectURL(a.href);
 }
 
+function chunkBits(uint8Array, channelBits) {
+  const result = [];
+  const totalBits = uint8Array.byteLength * 8;
+  let bitPos = 0;
+  let channelIndex = 0;
+
+  while (bitPos < totalBits) {
+    const width = channelBits[channelIndex % channelBits.length];
+    let value = 0;
+
+    for (let i = 0; i < width; i++) {
+      value <<= 1;
+
+      if (bitPos < totalBits) {
+        const byteIndex = Math.floor(bitPos / 8);
+        const bitOffset = 7 - (bitPos % 8);
+        value |= (uint8Array[byteIndex] >> bitOffset) & 1;
+      }
+
+      bitPos++;
+    }
+
+    result.push(value);
+    channelIndex++;
+  }
+
+  return result;
+}
+
 var selectedMesh;
 
 element("objFile").addEventListener("change", async function (event) {
@@ -78,38 +107,50 @@ element("downloadSM3I").addEventListener("click", async function (event) {
 
 	const exportName = fileName.substring(0, fileName.lastIndexOf(".") + 1) + "sm3i" + ".png";
 
-	const bytes = new Uint8ClampedArray(selectedMesh.toSM3B(getMeshSettings()));
-
-	const rBits = 8;
-	const gBits = 8;
-	const bBits = 8;
-	const aBits = 8;
-
-	const totalBits = rBits + gBits + bBits + aBits;
-
-	const totalPixels = Math.ceil((bytes.length * 8) / totalBits);
-
-	const img = {
-		width: 960,
-		height: Math.ceil(totalPixels / 960),
-		data: bytes
-	};
-
 	const canvas = document.createElement("canvas");
-	const ctx = canvas.getContext("2d");
-	canvas.width = img.width;
-	canvas.height = img.height;
-	const imageData = ctx.createImageData(img.width, img.height);
-
-	for (let i = 0; i < img.width * img.height; i++) {
-		imageData.data[i * 4] = img.data[i * 3];
-		imageData.data[i * 4 + 1] = img.data[i * 3 + 1];
-		imageData.data[i * 4 + 2] = img.data[i * 3 + 2];
-		imageData.data[i * 4 + 3] = 255;
-	}
-
-	ctx.putImageData(imageData, 0, 0);
+	const bytes = new Uint8ClampedArray(selectedMesh.toSM3B(getMeshSettings()));
+	bitsToImage(bytes, [5, 5, 4], 478, canvas);
 
 	console.log(canvas);
 	downloadCanvas(exportName, canvas.toDataURL("image/png"));
 });
+
+function bitsToImage(uint8Array, channelBits, maxWidth, canvas) {
+  const bitsPerPixel = channelBits.reduce((a, b) => a + b, 0);
+  const totalBits = uint8Array.byteLength * 8;
+  const totalPixels = Math.floor(totalBits / bitsPerPixel);
+
+  const width = Math.min(Math.ceil(Math.sqrt(totalPixels)), maxWidth);
+  const height = Math.ceil(totalPixels / width);
+
+  canvas.width = width;
+  canvas.height = height;
+
+  const ctx = canvas.getContext('2d');
+  const imageData = ctx.createImageData(width, height);
+  const pixels = imageData.data;
+
+  const channels = chunkBits(uint8Array, channelBits);
+
+  let maxR = 0;
+  let maxG = 0;
+  let maxB = 0;
+
+  for (let i = 0; i < width * height; i++) {
+    const r = channels[i * 3 + 0] ?? 0;
+    const g = channels[i * 3 + 1] ?? 0;
+    const b = channels[i * 3 + 2] ?? 0;
+	if (r > maxR) { maxR = r; }
+	if (g > maxG) { maxG = g; }
+	if (b > maxB) { maxB = b; }
+
+    const pixelIndex = i * 4;
+    pixels[pixelIndex + 0] = Math.floor(r * (2 ** (8 - channelBits[0])));
+    pixels[pixelIndex + 1] = Math.floor(g * (2 ** (8 - channelBits[1])));
+    pixels[pixelIndex + 2] = Math.floor(b * (2 ** (8 - channelBits[2])));
+    pixels[pixelIndex + 3] = 255;
+  }
+  console.log(maxR, maxG, maxB);
+
+  ctx.putImageData(imageData, 0, 0);
+}

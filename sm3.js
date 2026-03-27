@@ -1,6 +1,10 @@
 const charset = '!"#$%&\'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~ ¡¢£¤¥¦§¨©ª«¬­®¯°±²³´µ¶·¸¹º»¼½¾¿ÀÁÂÃÄÅÆÇÈÉÊËÌÍÎÏÐÑÒÓÔÕÖ×ØÙÚÛÜÝÞßàáâãäåæçèéêëìíîïðñòóôõö÷øùúûüýþÿ'
-const DELIMETER = "	";
+const DELIMETER =  "	";
 const encoder = new TextEncoder();
+
+const buffer = new ArrayBuffer(4);
+const float = new Float32Array(buffer);
+const int = new Uint32Array(buffer);
 
 class ScratchMesh {
     constructor(obj) {
@@ -35,15 +39,21 @@ class ScratchMesh {
             exported.push(name);
 
             // process vertices (v)
-            if (options.parsePos && vPosition.length > 0) {
+            if (vPosition.length > 0) {
                 exported.push("v");
                 for (const vertex of vPosition) {
-                    exported.push(vertex.map(v => parseFloat(v)).join(DELIMETER));
+                    const floats = new Float32Array(vertex)
+                    const bytes = Array.from(new Uint8Array(floats.buffer).map(byte => byte.toString(10)));
+                    console.log(bytes);
+                    exported.push(vertex.map(v => {
+                        float[0] = v;
+                        return compressInt(int[0]);
+                    } ).join(DELIMETER));
                 }
-            }
+            }  
 
             // process texture coordinates (vt)
-            if (options.parseTex && vTexture.length > 0) {
+            if (vTexture.length > 0) {
                 exported.push("vt");
                 for (const texCoord of vTexture) {
                     const compressed = texCoord.map(v =>
@@ -54,7 +64,7 @@ class ScratchMesh {
             }
 
             // process normals (vn)
-            if (options.parseNorm && vNormal.length > 0) {
+            if (vNormal.length > 0) {
                 exported.push("vn");
                 for (const normal of vNormal) {
                     const [x, y, z] = normal.map(v => parseFloat(v));
@@ -67,7 +77,7 @@ class ScratchMesh {
             }
 
             // process faces (f)
-            if (options.parseFaces && fFaces.length > 0) {
+            if (fFaces.length > 0) {
                 exported.push("f")
                 for (const face of fFaces) {
                     // parse the material if this one is different
